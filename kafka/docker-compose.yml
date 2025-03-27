@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  redpanda:
+    image: redpandadata/redpanda:latest
+    container_name: redpanda
+    restart: unless-stopped
+    networks:
+      - redpanda-net
+    ports:
+      - "9092:9092"  # Kafka API untuk akses dari host
+      - "9093:9093"  # Kafka API untuk komunikasi antar-container
+      - "9644:9644"  # Admin API
+    command:
+      - redpanda
+      - start
+      - --mode dev-container
+      - --smp 1
+      - --reserve-memory 0M
+      - --overprovisioned
+      - --node-id 0
+      - --kafka-addr INTERNAL://0.0.0.0:9093,PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr INTERNAL://redpanda:9093,PLAINTEXT://localhost:9092
+    volumes:
+      - redpanda-data:/var/lib/redpanda
+
+volumes:
+  redpanda-data:
+
+networks:
+  redpanda-net:
+    driver: bridge

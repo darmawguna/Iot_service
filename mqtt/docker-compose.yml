@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  hivemq:
+    image: hivemq/hivemq-ce:latest
+    container_name: hivemq
+    restart: unless-stopped
+    ports:
+      - "1883:1883"   # MQTT Port
+    volumes:
+      - hivemq-data:/opt/hivemq/data
+    networks:
+      - monitoring-network
+
+  mqtt-client:
+    image: eclipse-mosquitto:latest
+    container_name: mqtt-client
+    restart: unless-stopped
+    command: sleep infinity  # Container tetap hidup untuk debugging
+    networks:
+      - monitoring-network
+
+volumes:
+  hivemq-data:
+
+networks:
+  monitoring-network:
+    driver: bridge

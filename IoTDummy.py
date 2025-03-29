@@ -2,6 +2,7 @@ import json
 import random
 import time
 import paho.mqtt.client as mqtt
+from datetime import datetime, timezone
 
 # Konfigurasi MQTT Broker
 MQTT_BROKER = "localhost"  # Ganti dengan alamat broker MQTT
@@ -13,9 +14,9 @@ MQTT_TOPIC_STATUS = "iot/status"
 def generate_dummy_waterlevel():
     sensor_id = 0
     return {
-        "sensor_id": f"sensor_{sensor_id+1}",
+        "sensor_id": f"{1}",
         "water_level": round(random.uniform(0.5, 5.0), 2),
-        "timestamp": int(time.time())
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
 # Fungsi untuk membuat data dummy status sensor

@@ -30,6 +30,6 @@ def write_data(point):
     """Fungsi untuk menyimpan data ke InfluxDB."""
     try:
         influxdb.write(bucket=Config.INFLUXDB_BUCKET, record=point)
-        logger.info(f"📊 Data written to InfluxDB: {point.to_line_protocol()}")
+        # logger.info(f"📊 Data written to InfluxDB: {point.to_line_protocol()}")
     except Exception as e:
         logger.error(f"❌ Error writing to InfluxDB: {e}")

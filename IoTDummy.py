@@ -14,8 +14,8 @@ MQTT_TOPIC_STATUS = "iot/status"
 def generate_dummy_waterlevel():
     sensor_id = 0
     return {
-        "sensor_id": f"{1}",
-        "water_level": round(random.uniform(0.5, 5.0), 2),
+        "sensor_id": 1,
+        "water_level": round(random.uniform(20, 40)),
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
 

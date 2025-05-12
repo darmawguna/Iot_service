@@ -19,7 +19,8 @@ def get_form_data(required_fields):
 
     data = {}
     for field in required_fields:
-        field_value = request.form.get(field)
+        field_value = request.get_json().get(field)
+        # print(field_value)
         if not field_value:
             err_message = jsonify(
                 {"err_message": f"Missing required field: {field}"})

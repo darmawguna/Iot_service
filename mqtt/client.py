@@ -25,6 +25,7 @@ def on_connect(client, userdata, flags, rc):
         print(f"⚠ MQTT Connection failed with code {rc}")
 
 def on_message(client, userdata, msg):
+    
     try:
         payload = json.loads(msg.payload.decode())
         sensor_id = payload.get("sensor_id")
@@ -56,6 +57,58 @@ def on_disconnect(client, userdata, rc):
         except Exception as e:
             print(f"❌ Reconnect failed: {e}")
             time.sleep(5)
+
+def publish_command(device_id: str, payload: dict):
+    """
+    Publish perintah ke MQTT topic menggunakan client global yang sudah terkoneksi.
+    """
+
+    if mqtt_client is None:
+        raise Exception("MQTT client is not initialized. Please call start_mqtt() first.")
+
+    if not mqtt_client.is_connected():
+        raise Exception("MQTT client is not connected to broker.")
+
+    try:
+        topic = f"{Config.MQTT_BASE_TOPIC_COMMAND}/{device_id}/command"
+        message = json.dumps(payload)
+
+        result = mqtt_client.publish(topic, message)
+
+        if result.rc != mqtt.MQTT_ERR_SUCCESS:
+            raise Exception(f"MQTT publish failed with code {result.rc}")
+        else:
+            print(f"📡 Command published to topic {topic}: {message}")
+
+    except Exception as e:
+        print(f"❌ Failed to publish command: {e}")
+
+def publish_register_device(device_id: str, payload: dict):
+    """
+    Publish perintah ke MQTT topic menggunakan client global yang sudah terkoneksi.
+    """
+
+    if mqtt_client is None:
+        raise Exception("MQTT client is not initialized. Please call start_mqtt() first.")
+
+    if not mqtt_client.is_connected():
+        raise Exception("MQTT client is not connected to broker.")
+
+    try:
+        topic = f"{Config.MQTT_BASE_TOPIC_COMMAND}/register-device/command"
+        message = json.dumps(payload)
+
+        result = mqtt_client.publish(topic, message)
+
+        if result.rc != mqtt.MQTT_ERR_SUCCESS:
+            raise Exception(f"MQTT publish failed with code {result.rc}")
+        else:
+            print(f"📡 Command published to topic {topic}: {message}")
+
+    except Exception as e:
+        print(f"❌ Failed to publish command: {e}")
+
+
 
 def start_mqtt():
     global mqtt_client

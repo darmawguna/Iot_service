@@ -23,6 +23,8 @@ def set_threshold_iotdevice():
         "sensor_height": sensor_height,
         "sensor_id": sensor_id
     }
+    
+    print(f"📨 Received threshold command: {payload}")
 
     try:
         publish_command(sensor_id, payload)
@@ -36,7 +38,7 @@ def set_threshold_iotdevice():
 
 @iotdevice.route("/register-device", methods=["POST"])
 def register_device():
-    required = get_form_data(["device_id", "device_token", "warnig_level", "danger_level", "sensor_height"]) 
+    required = get_form_data(["device_id", "device_token", "warning_level", "danger_level", "sensor_height"]) 
     device_id = required["device_id"]
     device_token = required["device_token"]
     warning_level = required["warning_level"]
@@ -52,12 +54,16 @@ def register_device():
     }
 
     try:
-        publish_register_device(device_id, payload)
-        # TODO: listen for the response
-        # mqtt_client.subscribe([(Config.MQTT_TOPIC_REGISTER_DEVICE, 0)])
-        return create_response(
-            data=payload,
-            message="Threshold command published to MQTT successfully"
-        )
+        # Kirim command + tunggu respon
+        response = publish_register_device(device_id, payload)
+
+        if response and response.get("status") == "success":
+            return create_response(
+                data=response,
+                message="Device registered successfully"
+            )
+        else:
+           return create_response(data="",message="No response from device", status=408) 
+
     except Exception as e:
         return create_response(success=False, message=str(e)), 500

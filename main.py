@@ -4,8 +4,7 @@ import signal
 import sys
 from mqtt.client import start_mqtt, stop_mqtt
 from server.server import run_server
-
-# logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+from websocket.websocket import websocket_start, stop_websocket
 
 def signal_handler(sig, frame):
     """Menangani shutdown aplikasi"""
@@ -14,6 +13,7 @@ def signal_handler(sig, frame):
     
     # Hentikan MQTT Client dengan baik
     stop_mqtt()
+    stop_websocket()
 
     # Exit aplikasi
     sys.exit(0)
@@ -29,6 +29,8 @@ if __name__ == "__main__":
     # # Jalankan MQTT client di thread terpisah
     mqtt_thread = threading.Thread(target=start_mqtt, daemon=True)
     mqtt_thread.start()
+    websocket_thread = threading.Thread(target=websocket_start, daemon=True)
+    websocket_thread.start()
 
     # Jalankan server Flask
     run_server()

@@ -8,6 +8,8 @@ from config.settings import Config
 from helper.statusIot_handler import handle_sensor_status
 from helper.waterlevel_handler import handle_water_level
 from queue import Queue
+whitelist_cache = set()
+import requests
 
 # MQTT client global variables
 mqtt_client = None
@@ -17,6 +19,30 @@ stop_event = threading.Event()
 # Tambahkan komponen baru untuk menunggu respon registrasi
 response_queue = Queue()  # List untuk menyimpan beberapa response jika perlu
 register_event = threading.Event()
+
+def load_whitelist_from_backend():
+    """
+    Mengambil daftar device_id yang sudah teregistrasi dari backend dan
+    menyimpannya ke dalam whitelist_cache.
+    """
+    backend_url = "http://localhost:8000/api/iot/whitelist-device"  # Ganti dengan URL backend sebenarnya
+
+    try:
+        print("⏳ Requesting whitelist from backend...")
+        response = requests.get(backend_url, timeout=10)
+
+        if response.status_code == 200:
+            json_data = response.json()
+            if json_data.get("status") == "success" and isinstance(json_data.get("device_ids"), list):
+                whitelist_cache.clear()
+                whitelist_cache.update(json_data["device_ids"])
+
+        else:
+            print(f"❌ Failed to fetch whitelist. Status code: {response.status_code}")
+
+    except requests.RequestException as e:
+        print(f"❌ Error fetching whitelist from backend: {e}")
+
 
 def on_connect(client, userdata, flags, rc):
     """
@@ -70,6 +96,15 @@ def on_message(client, userdata, msg):
         # if sensor_id not in ALLOWED_SENSORS:
         #     print(f"❌ Unauthorized sensor: {sensor_id}")
         #     return
+        # Semua pesan non-registrasi harus diverifikasi
+        device_id = payload.get("sensor_id") or payload.get("device_id")
+        if not device_id:
+            print("❌ Payload does not contain device_id or sensor_id. Ignored.")
+            return
+
+        if device_id not in whitelist_cache:
+            print(f"⛔ Unauthorized device ID: {device_id}. Message rejected.")
+            return
 
         if msg.topic == Config.MQTT_TOPIC_WATERLEVEL:
             handle_water_level(payload)
@@ -173,20 +208,18 @@ def wait_for_registration_response(device_id, timeout=15):
 def publish_register_device(device_id: str, payload: dict):
     """
     Publishes a registration command to the MQTT broker and waits for a response
-    from the target device.
-
-    :param device_id: The ID of the target device.
-    :param payload: The registration payload to send, as a dictionary.
-
-    :return: The registration response (dict) if received within the timeout, None otherwise.
-
-    The function first checks that the MQTT client is initialized and connected.
-    It then constructs a topic using the base command topic and the device ID,
-    and publishes the provided payload as a JSON message to the MQTT broker.
-    It waits for a registration response message from the device and returns it
-    if received within the timeout period. If the timeout is reached without
-    receiving a response, it returns None. If any error occurs, it raises an exception.
+    from the target device. Prevents replay attack by caching device_id that has
+    already registered successfully.
     """
+    # Cek apakah device_id sudah pernah register
+    if device_id in whitelist_cache:
+        print(f"⚠️ Device ID {device_id} is already registered (cached). Ignoring request.")
+        return {
+            "device_id": device_id,
+            "status": "ignored",
+            "message": "Device already registered (cached)"
+        }
+
     if mqtt_client is None:
         raise Exception("MQTT client is not initialized. Please call start_mqtt() first.")
 
@@ -199,7 +232,6 @@ def publish_register_device(device_id: str, payload: dict):
         print(f"📡 Publishing registration command to topic {topic}: {message}")
 
         result = mqtt_client.publish(topic, message)
-        
 
         if result.rc != mqtt.MQTT_ERR_SUCCESS:
             raise Exception(f"MQTT publish failed with code {result.rc}")
@@ -211,6 +243,8 @@ def publish_register_device(device_id: str, payload: dict):
 
         if response:
             print("✅ Device responded successfully:", response)
+            # Tambahkan ke whitelist
+            whitelist_cache.add(device_id)
             return response
         else:
             print("❌ No response from device within timeout period.")
@@ -237,12 +271,27 @@ def publish_register_device(device_id: str, payload: dict):
 
 
 def start_mqtt(max_retries=5, retry_delay=5):
+    """
+    Starts the MQTT client and connects to the MQTT broker.
+
+    The function starts the MQTT client and loads the whitelist from the backend.
+    It then attempts to connect to the MQTT broker with the specified max retries
+    and retry delay. If the connection is successful, it starts the MQTT client
+    loop and waits for the stop event to be set. If the connection fails, it
+    retries until the max retries is reached.
+
+    :param max_retries: The maximum number of retries to attempt when connecting
+                        to the MQTT broker, defaults to 5.
+    :param retry_delay: The delay in seconds between retries, defaults to 5.
+    """
     global mqtt_client
     if mqtt_client is not None:
         print(f"⚠ MQTT Client is already running!")
         return
 
     print(f"🚀 Starting MQTT Client...")
+    load_whitelist_from_backend()
+    print(f"✅ Whitelist loaded successfully. Total devices: {len(whitelist_cache)}")
     mqtt_client = mqtt.Client()
     mqtt_client.on_connect = on_connect
     mqtt_client.on_message = on_message
@@ -267,6 +316,15 @@ def start_mqtt(max_retries=5, retry_delay=5):
             stop_mqtt()
 
 def stop_mqtt():
+    """
+    Stops the MQTT client and disconnects from the MQTT broker.
+
+    This function stops the MQTT client's loop and disconnects from the MQTT broker.
+    It also resets the MQTT client to None. If the stop event is already set, it
+    simply returns without doing anything.
+
+    :return: None
+    """
     global mqtt_client
     if stop_event.is_set():
         return

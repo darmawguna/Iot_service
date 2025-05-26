@@ -19,7 +19,7 @@ def on_message(client, userdata, msg):
         if not parsed_message:
             print("⚠️ Received empty message from MQTT")
             return
-        print(f"📡 MQTT Data: {msg.topic} -", parsed_message)
+        # print(f"📡 MQTT Data: {msg.topic} -", parsed_message)
         socketio.emit("water-level", parsed_message)  # Kirim ke semua client yang terhubung
     except json.JSONDecodeError as e:
         print("❌ Error processing MQTT message:", e)

@@ -17,7 +17,7 @@ REGISTER_RESPONSE_TOPIC = "iot/register-device/response"
 def generate_random_device_id(prefix="SIM-"):
     return prefix + ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
-DEVICE_ID = "53e3eb94-7ea4-4c17-b7b8-a2795908b221"
+DEVICE_ID = "4d83f823-f96a-458c-bddb-08fe51dbb3a3"
 print(f"📱 Simulated Device Booted with ID: {DEVICE_ID}")
 
 # Callback ketika klien terhubung ke broker
@@ -59,8 +59,6 @@ def publish_dummy_water_level(client, interval=5):
         dummy_data = {
             "device_id": DEVICE_ID,
             "water_level": round(random.uniform(0.0, 5.0), 2),
-            # "timestamp": int(time.time())
-            # "timestamp": datetime.utcnow().isoformat()
             "timestamp": datetime.now().isoformat()
         }
         client.publish(WATERLEVEL_TOPIC, json.dumps(dummy_data))

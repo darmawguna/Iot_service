@@ -4,12 +4,12 @@ import paho.mqtt.client as mqtt
 import threading
 import time
 from config.settings import Config
-# from influxdb.connection import write_data
 from helper.statusIot_handler import handle_sensor_status
-from helper.waterlevel_handler import handle_water_level
+# from helper.waterlevel_handler import write_sensor_data
 from queue import Queue
 whitelist_cache = set()
 import requests
+from dateutil import parser
 
 # MQTT client global variables
 mqtt_client = None
@@ -92,11 +92,6 @@ def on_message(client, userdata, msg):
             register_event.set()
             return
 
-        # Jika bukan response registrasi, lanjut ke handler biasa
-        # if sensor_id not in ALLOWED_SENSORS:
-        #     print(f"❌ Unauthorized sensor: {sensor_id}")
-        #     return
-        # Semua pesan non-registrasi harus diverifikasi
         device_id = payload.get("sensor_id") or payload.get("device_id")
         if not device_id:
             print("❌ Payload does not contain device_id or sensor_id. Ignored.")
@@ -105,11 +100,26 @@ def on_message(client, userdata, msg):
         if device_id not in whitelist_cache:
             print(f"⛔ Unauthorized device ID: {device_id}. Message rejected.")
             return
+        # print(f"📥 Message received on topic {msg.topic} for device {device_id}: {payload}")
+        # if msg.topic == Config.MQTT_TOPIC_WATERLEVEL:
+        #     device_id = payload.get("device_id")
+        #     water_level = float(payload.get("water_level", 0))
+        #     timestamp = parser.isoparse(payload.get("timestamp")) if "timestamp" in payload else None
 
-        if msg.topic == Config.MQTT_TOPIC_WATERLEVEL:
-            handle_water_level(payload)
-        elif msg.topic == Config.MQTT_TOPIC_STATUS:
-            handle_sensor_status(payload)
+        #     success = write_data(
+        #         measurement="WaterLevelSensor",
+        #         device_id=device_id,
+        #         sensor_data={"water_level": water_level},
+        #         timestamp=timestamp
+        #     )
+
+        #     if success:
+        #         print(f"✅ Water level data saved for device {device_id}")
+        #     else:
+        #         print(f"❌ Failed to write water level data for device {device_id}")
+
+        # elif msg.topic == Config.MQTT_TOPIC_STATUS:
+        #     handle_sensor_status(payload)
     except json.JSONDecodeError:
         print(f"❌ Invalid JSON received!")
     except KeyError as e:
@@ -289,6 +299,7 @@ def start_mqtt(max_retries=5, retry_delay=5):
         print(f"⚠ MQTT Client is already running!")
         return
 
+    # test_connection()
     print(f"🚀 Starting MQTT Client...")
     load_whitelist_from_backend()
     print(f"✅ Whitelist loaded successfully. Total devices: {len(whitelist_cache)}")

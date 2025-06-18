@@ -3,6 +3,7 @@ import traceback
 from influxdb_client import InfluxDBClient
 from config.settings import Config
 
+
 # Setup Logger
 logger = logging.getLogger("MQTT_Client")
 logger.setLevel(logging.INFO)

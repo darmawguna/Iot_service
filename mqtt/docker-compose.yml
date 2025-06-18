@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   hivemq:
     image: hivemq/hivemq-ce:latest

@@ -29,8 +29,8 @@ if __name__ == "__main__":
     # # Jalankan MQTT client di thread terpisah
     mqtt_thread = threading.Thread(target=start_mqtt, daemon=True)
     mqtt_thread.start()
-    websocket_thread = threading.Thread(target=websocket_start, daemon=True)
-    websocket_thread.start()
+    # websocket_thread = threading.Thread(target=websocket_start, daemon=True)
+    # websocket_thread.start()
 
     # Jalankan server Flask
     run_server()

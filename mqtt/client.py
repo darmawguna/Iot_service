@@ -6,6 +6,7 @@ import time
 from config.settings import Config
 from helper.statusIot_handler import handle_sensor_status
 # from helper.waterlevel_handler import write_sensor_data
+from influxdb.influxdb_helper import write_data
 from queue import Queue
 whitelist_cache = set()
 import requests
@@ -101,22 +102,11 @@ def on_message(client, userdata, msg):
             print(f"⛔ Unauthorized device ID: {device_id}. Message rejected.")
             return
         # print(f"📥 Message received on topic {msg.topic} for device {device_id}: {payload}")
-        # if msg.topic == Config.MQTT_TOPIC_WATERLEVEL:
-        #     device_id = payload.get("device_id")
-        #     water_level = float(payload.get("water_level", 0))
-        #     timestamp = parser.isoparse(payload.get("timestamp")) if "timestamp" in payload else None
+        if msg.topic == Config.MQTT_TOPIC_WATERLEVEL:
+            response = write_data(payload)
+            if response is None:
+                print(f"❌ Failed to write data for device {device_id}.")
 
-        #     success = write_data(
-        #         measurement="WaterLevelSensor",
-        #         device_id=device_id,
-        #         sensor_data={"water_level": water_level},
-        #         timestamp=timestamp
-        #     )
-
-        #     if success:
-        #         print(f"✅ Water level data saved for device {device_id}")
-        #     else:
-        #         print(f"❌ Failed to write water level data for device {device_id}")
 
         # elif msg.topic == Config.MQTT_TOPIC_STATUS:
         #     handle_sensor_status(payload)

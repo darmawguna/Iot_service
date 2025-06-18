@@ -86,25 +86,20 @@ def get_water_level_trend():
     
 @waterlevel.route("/latest", methods=["POST"])
 def get_water_level_latest():
-    """
-    Endpoint untuk mendapatkan data water level terbaru dari sensor.
-    Contoh request:
-    {
-        "sensor_id": "sensor_1"
-    }
-    """
+    # ...
     required = get_form_data(["sensor_id"])
     sensor_id = required["sensor_id"]
 
     if not sensor_id:
         return jsonify({"error": "sensor_id is required"}), 400
 
+    # PERBAIKAN: Query disesuaikan dengan skema yang benar
     query = f"""
     from(bucket: "{Config.INFLUXDB_BUCKET}")
       |> range(start: -7d)
-      |> filter(fn: (r) => r["_measurement"] == "WaterLevel")
-      |> filter(fn: (r) => r["sensor_id"] == "{sensor_id}")
-      |> filter(fn: (r) => r["_field"] == "water_level")
+      |> filter(fn: (r) => r["_measurement"] == "water_level") 
+      |> filter(fn: (r) => r["device_id"] == "{sensor_id}")
+      |> filter(fn: (r) => r["_field"] == "height")
       |> last()
     """
 
@@ -115,15 +110,14 @@ def get_water_level_latest():
         for record in table.records:
             latest_record = {
                 "time": record.get_time().isoformat(),
-                "water_level": record.get_value(),
-                "sensor_id": sensor_id
+                "height": record.get_value(), 
+                "device_id": sensor_id
             }
 
     if not latest_record:
         return jsonify({"message": "No recent data found for this sensor."}), 404
 
     return create_response(data=latest_record, message="Success get latest water level")
-
 
 @waterlevel.route("/test", methods=["GET"])
 def test():

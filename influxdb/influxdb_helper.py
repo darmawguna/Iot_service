@@ -26,16 +26,16 @@ def write_data(data):
 
         # PERBAIKAN: Ambil 'height' dari data, bukan 'water_level'
         device_id = data.get("device_id")
-        height = data.get("height") # <-- Menggunakan 'height' agar cocok dengan simulator
+        water_level = data.get("water_level") # <-- Menggunakan 'water_level' agar cocok dengan simulator
 
-        if not device_id or height is None:
+        if not device_id or water_level is None:
             logger.warning(f"⚠️ Data tidak lengkap, dilewati: {data}")
             return None
 
         # PERBAIKAN: Gunakan skema yang konsisten
-        point = Point("water_level") \
+        point = Point("TestingIoTFinal") \
             .tag("device_id", device_id) \
-            .field("height", float(height))
+            .field("water_level", float(water_level))
         
         line_protocol = point.to_line_protocol()
         logger.info(f"📤 Menulis data: {line_protocol}")

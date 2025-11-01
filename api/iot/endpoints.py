@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 from config.settings import Config
 from helper.form_validation import get_form_data
 from helper.json_formatter import create_response
-from mqtt.client import publish_command, publish_register_device  # pastikan kamu import fungsi ini
+from mqtt.mqtt_client import mqtt_helper 
 
 import json
 
@@ -27,13 +27,13 @@ def set_threshold_iotdevice():
     print(f"📨 Received threshold command: {payload}")
 
     try:
-        publish_command(sensor_id, payload)
+        mqtt_helper.publish_command(sensor_id, payload)
         return create_response(
             data=payload,
             message="Threshold command published to MQTT successfully"
         )
     except Exception as e:
-        return create_response(success=False, message=str(e)), 500
+        return create_response(status=False, message=str(e)), 500
     
 
 @iotdevice.route("/register-device", methods=["POST"])
@@ -55,7 +55,7 @@ def register_device():
 
     try:
         # Kirim command + tunggu respon
-        response = publish_register_device(device_id, payload)
+        response = mqtt_helper.publish_register_device(device_id, payload)
 
         if response and response.get("status") == "success":
             return create_response(
@@ -66,4 +66,4 @@ def register_device():
            return create_response(data="",message="No response from device", status=408) 
 
     except Exception as e:
-        return create_response(success=False, message=str(e)), 500
+        return create_response(status=False, message=str(e)), 500

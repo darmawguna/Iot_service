@@ -19,3 +19,7 @@ class Config:
     INFLUXDB_TOKEN = os.getenv("INFLUXDB_TOKEN")
     INFLUXDB_ORG = os.getenv("INFLUXDB_ORG")
     INFLUXDB_BUCKET = os.getenv("INFLUXDB_BUCKET")
+    
+    # Backend API Configuration
+    BACKEND_API_URL = os.getenv("BACKEND_API_URL")
+    WHITELIST_API_URL = os.getenv("WHITELIST_API_URL")

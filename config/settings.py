@@ -13,6 +13,9 @@ class Config:
     REGISTRATION_RESPONSE_TOPIC = os.getenv("REGISTRATION_RESPONSE_TOPIC")
     REGISTRATION_REQUEST_TOPIC = os.getenv("REGISTRATION_REQUEST_TOPIC")
     MQTT_BASE_TOPIC_COMMAND = os.getenv("MQTT_BASE_TOPIC_COMMAND", "iot/sensor")
+    # TODO perbarui agar menggunakan env
+    REDIS_HOST = 'localhost'
+    REDIS_PORT = 6379
 
     # InfluxDB Configuration
     INFLUXDB_URL = os.getenv("INFLUXDB_URL")

@@ -1,36 +1,71 @@
+import redis
+import json
+import logging
 from flask import Blueprint, jsonify, request
-from config.settings import Config
+from config.settings import Config  # Pastikan file config.py/settings.py Anda memiliki REDIS_HOST dan REDIS_PORT
 from helper.form_validation import get_form_data
 from helper.json_formatter import create_response
-from mqtt.mqtt_client import mqtt_helper 
 
-import json
-
-# Blueprint untuk Water Level
+# --- Setup ---
 iotdevice = Blueprint("iotdevice", __name__)
+logger = logging.getLogger(__name__)
+
+# Channel Redis yang akan kita gunakan
+COMMAND_CHANNEL = "command_to_mqtt" 
+# --- Koneksi ke Redis ---
+try:
+    # Buat koneksi Redis di level modul
+    redis_client = redis.Redis(
+        host=Config.REDIS_HOST,
+        port=Config.REDIS_PORT,
+        db=0,
+        decode_responses=True # Otomatis decode dari bytes ke string
+    )
+    redis_client.ping()
+    logger.info("✅ (API Endpoints) Berhasil terhubung ke Redis.")
+except Exception as e:
+    logger.error(f"❌ (API Endpoints) Gagal terhubung ke Redis: {e}")
+    redis_client = None
+
+# --- Endpoint yang Telah Di-refactor ---
 
 @iotdevice.route("/threshold", methods=["POST"])
 def set_threshold_iotdevice():
-    required = get_form_data(["sensor_id", "warning_level", "danger_level", "sensor_height"]) 
-    sensor_id = required["sensor_id"]
-    warning_level = required["warning_level"]
-    danger_level = required["danger_level"]
-    sensor_height = required["sensor_height"]
-
-    payload = {
-        "warning_level": warning_level,
-        "danger_level": danger_level,
-        "sensor_height": sensor_height,
-        "sensor_id": sensor_id
-    }
-    
-    print(f"📨 Received threshold command: {payload}")
+    """
+    Menerima perintah 'set threshold' dan meneruskannya ke
+    MQTT Worker melalui Redis secara asinkron.
+    """
+    if not redis_client:
+        return create_response(status=False, message="Koneksi ke service internal (Redis) gagal"), 503
 
     try:
-        mqtt_helper.publish_command(sensor_id, payload)
+        required = get_form_data(["sensor_id", "warning_level", "danger_level", "sensor_height"]) 
+        sensor_id = required["sensor_id"]
+        
+        # Buat payload yang akan dikonsumsi oleh perangkat
+        payload = {
+            "warning_level": required["warning_level"],
+            "danger_level": required["danger_level"],
+            "sensor_height": required["sensor_height"],
+            "sensor_id": sensor_id
+        }
+        
+        # Buat pesan lengkap untuk MQTT Worker
+        message = {
+            "type": "command", # Tipe perintah generik
+            "device_id": sensor_id,
+            "topic": f"{Config.MQTT_BASE_TOPIC_COMMAND}/{sensor_id}", # Tentukan topik di sini
+            "payload": payload
+        }
+        
+        # Publikasikan ke Redis
+        redis_client.publish(COMMAND_CHANNEL, json.dumps(message))
+        
+        # Berikan respons cepat ke klien (Laravel)
         return create_response(
             data=payload,
-            message="Threshold command published to MQTT successfully"
+            message="Perintah 'set threshold' telah diterima dan sedang diproses",
+            status_code=202 # 202 Accepted (Diterima, belum dieksekusi)
         )
     except Exception as e:
         return create_response(status=False, message=str(e)), 500
@@ -38,32 +73,47 @@ def set_threshold_iotdevice():
 
 @iotdevice.route("/register-device", methods=["POST"])
 def register_device():
-    required = get_form_data(["device_id", "device_token", "warning_level", "danger_level", "sensor_height"]) 
-    device_id = required["device_id"]
-    device_token = required["device_token"]
-    warning_level = required["warning_level"]
-    danger_level = required["danger_level"]
-    sensor_height = required["sensor_height"]
-
-    payload = {
-        "device_id": device_id,
-        "device_token": device_token,
-        "warning_level": warning_level,
-        "danger_level": danger_level,
-        "sensor_height": sensor_height,
-    }
+    """
+    Menerima perintah 'register device' dari Laravel dan meneruskannya
+    ke MQTT Worker melalui Redis secara asinkron.
+    """
+    if not redis_client:
+        return create_response(status=False, message="Koneksi ke service internal (Redis) gagal"), 503
 
     try:
-        # Kirim command + tunggu respon
-        response = mqtt_helper.publish_register_device(device_id, payload)
+        required = get_form_data(["device_id", "device_token", "warning_level", "danger_level", "sensor_height"]) 
+        device_id = required["device_id"]
+    
+        payload = {
+            "device_id": device_id,
+            "device_token": required["device_token"],
+            "warning_level": required["warning_level"],
+            "danger_level": required["danger_level"],
+            "sensor_height": required["sensor_height"],
+        }
 
-        if response and response.get("status") == "success":
-            return create_response(
-                data=response,
-                message="Device registered successfully"
-            )
-        else:
-           return create_response(data="",message="No response from device", status=408) 
+        # Buat pesan lengkap untuk MQTT Worker
+        message = {
+            "type": "register_device", # Tipe perintah khusus
+            "device_id": device_id,
+            "topic": Config.REGISTRATION_REQUEST_TOPIC, # Tentukan topik
+            "payload": payload
+        }
+
+        # Publikasikan ke Redis
+        redis_client.publish(COMMAND_CHANNEL, json.dumps(message))
+
+        # --- LOGIKA LAMA (DIHAPUS) ---
+        # response = mqtt_helper.publish_register_device(device_id, payload)
+        # Bagian 'if response...' dihapus karena kita tidak lagi menunggu.
+
+        # --- RESPON BARU ---
+        # Langsung beri tahu Laravel bahwa perintah sudah diterima
+        return create_response(
+            data=payload,
+            message="Perintah registrasi telah diterima dan sedang diproses",
+            status_code=202 # 202 Accepted
+        )
 
     except Exception as e:
         return create_response(status=False, message=str(e)), 500

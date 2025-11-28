@@ -96,6 +96,23 @@ class MQTTWorker:
                 # 2. Teruskan data ke Dashboard (via Redis)
                 self.redis_client.publish(DATA_CHANNEL, json.dumps(payload))
                 self.logger.info(f"Menerima data dari {device_id} dan meneruskannya ke dashboard.")
+                try:
+                    # Ambil data spesifik untuk heartbeat
+                    heartbeat_data = {
+                        "fw_version": payload.get("fw_version"),
+                        "rssi": payload.get("rssi")
+                    }
+                    
+                    #TODO Pastikan URL Laravel benar (bisa ditaruh di Config)
+                    laravel_url = f"http://localhost:8000/api/iot/{device_id}/heartbeat"
+                    
+                    # Kirim request (timeout kecil agar tidak memblokir lama)
+                    requests.post(laravel_url, json=heartbeat_data, timeout=2)
+                    
+                except Exception as req_err:
+                    self.logger.error(f"Gagal update heartbeat ke Laravel: {req_err}")
+
+                self.logger.info(f"Data diproses untuk {device_id} (Ver: {payload.get('fw_version')})")
 
         except Exception as e:
             self.logger.error(f"❌ Error memproses pesan MQTT: {e}", exc_info=True)

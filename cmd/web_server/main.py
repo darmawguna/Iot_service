@@ -83,7 +83,7 @@ def handle_disconnect():
     logger.info(f"🔌 (WebSocket) Client {request.sid} terputus")
 
 @socketio.on('join_admin_room')
-def handle_join_admin_room(data):
+def handle_join_admin_room(data=None):
     """
     Event untuk dashboard admin bergabung ke room notifikasi.
     """

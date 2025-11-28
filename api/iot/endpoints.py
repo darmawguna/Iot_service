@@ -103,10 +103,6 @@ def register_device():
         # Publikasikan ke Redis
         redis_client.publish(COMMAND_CHANNEL, json.dumps(message))
 
-        # --- LOGIKA LAMA (DIHAPUS) ---
-        # response = mqtt_helper.publish_register_device(device_id, payload)
-        # Bagian 'if response...' dihapus karena kita tidak lagi menunggu.
-
         # --- RESPON BARU ---
         # Langsung beri tahu Laravel bahwa perintah sudah diterima
         return create_response(
@@ -117,3 +113,22 @@ def register_device():
 
     except Exception as e:
         return create_response(status=False, message=str(e)), 500
+
+@iotdevice.route('/<device_id>/change-status', methods=['PATCH'])
+def change_status(device_id):
+    # Endpoint ini sebenarnya bisa digunakan untuk SEMUA command (bukan cuma status)
+    data = request.json # Laravel mengirim {"cmd": "OTA_UPDATE", "url": "..."}
+    
+    if not redis_client:
+         return create_response(status=False, message="Redis error"), 503
+
+    try:
+        redis_client.publish('command_to_mqtt', json.dumps({
+            "type": "command", 
+            "device_id": device_id,
+            "topic": f"{Config.MQTT_BASE_TOPIC_COMMAND}/{device_id}", 
+            "payload": data 
+        }))
+        return jsonify({"status": "success", "message": "Command queued"}), 202
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
